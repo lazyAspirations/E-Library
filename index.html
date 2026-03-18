@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>whisper · spinning bookshelf</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f4f1ea;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            transition: background 0.2s ease;
+        }
+
+        .shelf-card {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 3rem;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* horizontal carousel container */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2.5rem;
+        }
+
+        /* main carousel wrapper - hidden */
+        .carousel-wrapper {
+            display: none;
+        }
+
+        /* navigation buttons */
+        .carousel-nav {
+            display: none;
+        }
+
+        /* main book display */
+        .main-book-container {
+            display: none;
+        }
+
+        .main-book {
+            display: none;
+        }
+
+        /* thumbnails strip */
+        .thumbnails-strip {
+            display: flex;
+            gap: 0;
+            justify-content: flex-start;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            width: 100%;
+            padding: 1.5rem 1rem;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar styling */
+        .thumbnails-strip::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .thumbnails-strip::-webkit-scrollbar-track {
+            background: rgba(220, 210, 200, 0.2);
+            border-radius: 10px;
+        }
+
+        .thumbnails-strip::-webkit-scrollbar-thumb {
+            background: #b8aa9a;
+            border-radius: 10px;
+            border: 2px solid rgba(220, 210, 200, 0.2);
+        }
+
+        .thumbnails-strip::-webkit-scrollbar-thumb:hover {
+            background: #a69581;
+        }
+
+        /* Firefox scrollbar */
+        .thumbnails-strip {
+            scrollbar-color: #b8aa9a rgba(220, 210, 200, 0.2);
+            scrollbar-width: thin;
+        }
+
+        .thumb-scroller {
+            display: flex;
+            gap: 1.5rem;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            padding: 0 1rem;
+        }
+
+        .circle-wrapper {
+            display: none;
+        }
+
+        .disk {
+            display: none;
+        }
+
+        .book-thumb {
+            position: relative;
+            width: 130px;
+            height: 200px;
+            background: #e8e0d5;
+            border-radius: 8px 3px 3px 8px;
+            box-shadow: 0 12px 20px rgba(60, 40, 20, 0.2), -3px 0 0 #b8aa9a;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #2d3a31;
+            text-align: center;
+            padding: 6px 3px;
+            border: 2px solid rgba(255, 255, 240, 0.7);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            word-break: break-word;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .book-thumb.selected {
+            box-shadow: 0 0 0 3px #8b6f4c, 0 8px 16px rgba(0,0,0,0.3);
+            transform: scale(1.15);
+            z-index: 50;
+            border-color: #8b6f4c;
+        }
+
+        .book-thumb:not(.selected):hover {
+            transform: scale(1.1);
+            filter: brightness(1.05);
+            box-shadow: 0 8px 14px rgba(0,0,0,0.2);
+        }
+
+        /* spine label (simulate title) */
+        .spine-label {
+            background: rgba(245, 240, 230, 0.9);
+            width: 100%;
+            padding: 2px 0;
+            border-radius: 2px;
+            font-size: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* spin controls */
+        .spin-controls {
+            display: flex;
+            gap: 0;
+            margin-top: 1rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spin-btn {
+            background: #dfd9cf;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.8rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #2c3e33;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .spin-btn:hover {
+            background: #cfc6b8;
+            transform: scale(1.04);
+        }
+
+        .empty-shelf-msg {
+            color: #5b4f42;
+            font-size: 1.1rem;
+            padding: 2rem;
+            background: #eae3d9;
+            border-radius: 5rem;
+        }
+
+        /* upload area */
+        .upload-zone {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 0 0 0.8rem 0;
+            padding: 0;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* icon buttons */
+        .icon-btn {
+            background: #dfd9cf;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+            color: #2c3e33;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .icon-btn:hover {
+            background: #cfc6b8;
+            transform: scale(1.08);
+        }
+
+        .icon-label {
+            position: absolute;
+            left: 100%;
+            margin-left: 0.8rem;
+            background: #2c3e33;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+
+        .icon-btn:hover .icon-label {
+            opacity: 1;
+        }
+
+        .icon-btn svg {
+            pointer-events: none;
+        }
+
+        .primary-btn {
+            background: #2c3e33;
+            color: white;
+            border: none;
+            padding: 0.9rem 2.2rem;
+            border-radius: 60px;
+            font-size: 1.1rem;
+            font-weight: 450;
+            box-shadow: 0 4px 10px rgba(28, 45, 35, 0.2);
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .primary-btn:hover {
+            background: #1f2f26;
+        }
+
+        .badge-btn {
+            background: #ddd6cc;
+            border: none;
+            padding: 0.9rem 2rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .badge-btn:hover {
+            background: #cdc2b4;
+        }
+
+        /* book reader panel (reused from original with adaptation) */
+        .reader-panel {
+            background: #f2efe9;
+            border-radius: 32px;
+            padding: 1.8rem;
+            margin-top: 2rem;
+            border: 1px solid #fff2e2;
+        }
+
+        .book-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            gap: 1rem;
+        }
+        .book-title {
+            background: #e0d9cf;
+            padding: 0.3rem 1.4rem;
+            border-radius: 40px;
+            font-size: 1.2rem;
+            flex-shrink: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .viewer-area {
+            background: #fffffff2;
+            border-radius: 24px;
+            min-height: 360px;
+            max-height: 58vh;
+            overflow: auto;
+            padding: 1.5rem;
+            font-size: 1.1rem;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .pdf-embed {
+            width: 100%;
+            height: 58vh;
+            border: none;
+            border-radius: 16px;
+        }
+        .epub-message {
+            text-align: center;
+            padding: 2rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="shelf-card">
+        <!-- upload toolbar -->
+        <div class="upload-zone">
+            <button class="icon-btn" id="clearShelfBtn" title="clear shelf">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-1.5-1.5M5 19l1.5 1.5M3 3l18 18M21 3L3 21"/></svg>
+                <span class="icon-label">clear shelf</span>
+            </button>
+            <button class="icon-btn" id="uploadBooksBtn" title="add books">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16v-6M15 12l-3-3-3 3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><circle cx="12" cy="12" r="10"/></svg>
+                <span class="icon-label">add books</span>
+            </button>
+        </div>
+
+        <!-- netflix-style horizontal carousel -->
+        <div class="carousel-container">
+            <div class="thumbnails-strip">
+                <div class="thumb-scroller" id="thumbScroller">
+                    <!-- thumbnails injected via js -->
+                </div>
+            </div>
+            
+            <div class="carousel-wrapper">
+                <button class="carousel-nav" id="navLeftBtn">‹</button>
+                <div class="main-book-container">
+                    <div class="main-book" id="mainBook">
+                        <div class="book-label" id="mainBookLabel">select a book</div>
+                    </div>
+                </div>
+                <button class="carousel-nav" id="navRightBtn">›</button>
+            </div>
+            
+            <div id="emptyShelfMessage" class="empty-shelf-msg">no books yet - upload some</div>
+        </div>
+
+        <!-- reader area (visible when a book selected) -->
+        <div id="readerPanel" class="reader-panel hidden">
+            <div class="book-header">
+                <span class="book-title" id="currentBookTitle">select a book</span>
+                <button class="badge-btn" id="closeReaderBtn">✕ close</button>
+            </div>
+            <div id="viewerArea" class="viewer-area">
+                <!-- dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- hidden file input (multiple) -->
+    <input type="file" id="fileInput" multiple accept=".pdf,.epub,application/pdf,application/epub+zip" />
+
+    <!-- PDF.js for rendering PDF first pages -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <script>
+        (function() {
+            // ----- state -----
+            let books = [];               // array of { file, name, blobUrl, type, thumbColor? }
+            let selectedIndex = -1;        // index in books array
+
+            // DOM elements
+            const thumbScroller = document.getElementById('thumbScroller');
+            const emptyMsg = document.getElementById('emptyShelfMessage');
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBooksBtn');
+            const clearBtn = document.getElementById('clearShelfBtn');
+            const navLeft = document.getElementById('navLeftBtn');
+            const navRight = document.getElementById('navRightBtn');
+            const readerPanel = document.getElementById('readerPanel');
+            const currentBookTitle = document.getElementById('currentBookTitle');
+            const viewerArea = document.getElementById('viewerArea');
+            const closeReaderBtn = document.getElementById('closeReaderBtn');
+            const mainBook = document.getElementById('mainBook');
+            const mainBookLabel = document.getElementById('mainBookLabel');
+
+            // helper: predefine some muted colours for thumbnails (if no cover)
+            const colorPalette = ['#d9d0c0', '#c7bcab', '#b8aa99', '#a69581', '#d0bfae', '#bba88f', '#e1cfbb'];
+
+            // ----- extract first page from PDF as thumbnail -----
+            async function extractPdfFirstPage(book) {
+                if (!book.file || book.type !== 'application/pdf') {
+                    return null;
+                }
+                
+                try {
+                    const arrayBuffer = await book.file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    const page = await pdf.getPage(1);
+                    
+                    const scale = 1.5;
+                    const viewport = page.getViewport({ scale });
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    
+                    const context = canvas.getContext('2d');
+                    await page.render({ canvasContext: context, viewport }).promise;
+                    
+                    return canvas.toDataURL('image/jpeg', 0.8);
+                } catch (error) {
+                    console.error('Error extracting PDF page:', error);
+                    return null;
+                }
+            }
+
+            // ----- render thumbnails strip -----
+            function renderThumbnails() {
+                if (!thumbScroller) return;
+
+                // clear scroller
+                thumbScroller.innerHTML = '';
+                const count = books.length;
+
+                if (count === 0) {
+                    emptyMsg.classList.remove('hidden');
+                    readerPanel.classList.add('hidden');
+                    selectedIndex = -1;
+                    mainBook.style.backgroundColor = '#e8e0d5';
+                    mainBook.style.backgroundImage = 'none';
+                    mainBookLabel.textContent = 'select a book';
+                    return;
+                }
+                emptyMsg.classList.add('hidden');
+
+                for (let i = 0; i < count; i++) {
+                    const book = books[i];
+                    
+                    const thumb = document.createElement('div');
+                    thumb.className = 'book-thumb';
+                    if (i === selectedIndex) thumb.classList.add('selected');
+                    
+                    const bgColor = colorPalette[i % colorPalette.length];
+                    thumb.style.backgroundColor = bgColor;
+                    
+                    // Use thumbnail image if available
+                    if (book.thumbnailImage) {
+                        thumb.style.backgroundImage = `url('${book.thumbnailImage}')`;
+                    }
+                    
+                    // simple label
+                    const label = document.createElement('div');
+                    label.className = 'spine-label';
+                    let shortName = book.name;
+                    if (shortName.length > 10) shortName = shortName.slice(0, 8) + '…';
+                    label.textContent = shortName;
+                    thumb.appendChild(label);
+
+                    // click to select
+                    thumb.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectBook(i);
+                    });
+
+                    thumbScroller.appendChild(thumb);
+                }
+                
+                // update main book display
+                if (selectedIndex >= 0 && selectedIndex < count) {
+                    updateMainBook(selectedIndex);
+                }
+            }
+
+            // ----- update main book display -----
+            function updateMainBook(index) {
+                if (index < 0 || index >= books.length) return;
+                
+                const book = books[index];
+                const bgColor = colorPalette[index % colorPalette.length];
+                mainBook.style.backgroundColor = bgColor;
+                
+                if (book.thumbnailImage) {
+                    mainBook.style.backgroundImage = `url('${book.thumbnailImage}')`;
+                } else {
+                    mainBook.style.backgroundImage = 'none';
+                }
+                
+                let displayName = book.name;
+                if (displayName.length > 40) displayName = displayName.slice(0, 37) + '…';
+                mainBookLabel.textContent = displayName;
+            }
+
+            // ----- select a book (load into reader) -----
+            function selectBook(index) {
+                if (index < 0 || index >= books.length) return;
+                const previous = selectedIndex;
+                selectedIndex = index;
+                // update selected class and main book
+                renderThumbnails();
+                scrollThumbnails();
+
+                const book = books[index];
+                currentBookTitle.textContent = book.name.length > 50 ? book.name.slice(0,50)+'…' : book.name;
+                readerPanel.classList.remove('hidden');
+
+                // clean previous viewer
+                viewerArea.innerHTML = '';
+                // revoke old blob url if any? we manage per book blob
+                // load content based on type
+                const file = book.file;
+                const fileExt = book.name.split('.').pop().toLowerCase();
+
+                if (fileExt === 'pdf' || (file.type && file.type === 'application/pdf')) {
+                    displayPdf(book);
+                    // Extract first page for thumbnail
+                    extractPdfFirstPage(book).then(imageData => {
+                        if (imageData) {
+                            book.thumbnailImage = imageData;
+                            // update thumbnail and main book display
+                            renderThumbnails();
+                        }
+                    });
+                } else if (fileExt === 'epub' || (file.type && file.type === 'application/epub+zip')) {
+                    displayEpub(book);
+                } else {
+                    viewerArea.innerHTML = `<div class="epub-message">❌ unsupported file</div>`;
+                }
+            }
+
+           async function displayPdf(book) {
+    // If we have a local file (just uploaded), use it
+    if (book.file) {
+        if (!book.blobUrl) book.blobUrl = URL.createObjectURL(book.file);
+    } 
+    // If it's from the server and we haven't fetched the file yet
+    else if (book.serverId && !book.blobUrl) {
+        viewerArea.innerHTML = '<div class="epub-message">⏳ Loading PDF...</div>';
+        try {
+            const response = await fetch(`/api/books/${book.serverId}/file`);
+            const blob = await response.blob();
+            book.blobUrl = URL.createObjectURL(blob);
+        } catch (err) {
+            viewerArea.innerHTML = '❌ Error loading file';
+            return;
+        }
+    }
+
+    viewerArea.innerHTML = ''; // Clear loading message
+    const embed = document.createElement('embed');
+    embed.src = book.blobUrl;
+    embed.type = 'application/pdf';
+    embed.className = 'pdf-embed';
+    viewerArea.appendChild(embed);
+}
+
+async function displayEpub(book) {
+    if (book.file && !book.blobUrl) {
+        book.blobUrl = URL.createObjectURL(book.file);
+    } else if (book.serverId && !book.blobUrl) {
+        const response = await fetch(`/api/books/${book.serverId}/file`);
+        const blob = await response.blob();
+        book.blobUrl = URL.createObjectURL(blob);
+    }
+    
+    viewerArea.innerHTML = `
+        <div class="epub-message">
+            <div style="background:#eee7dd; border-radius:2rem; padding:2rem;">
+                <span style="font-size:3rem;">📘</span><br>
+                <strong>EPUB Preview</strong><br>
+                <span style="color: #3b5246;">“${book.name}”</span><br><br>
+                <a href="${book.blobUrl}" download="${book.name}" class="primary-btn">⬇ download EPUB</a>
+            </div>
+        </div>
+    `;
+}
+
+            function displayEpub(book) {
+                if (!book.blobUrl) {
+                    book.blobUrl = URL.createObjectURL(book.file);
+                }
+                viewerArea.innerHTML = `
+                    <div class="epub-message">
+                        <div style="background:#eee7dd; border-radius:2rem; padding:2rem;">
+                            <span style="font-size:3rem;">📘</span><br>
+                            <strong>EPUB cannot be previewed natively</strong><br>
+                            <span style="color: #3b5246;">“${book.name}”</span><br><br>
+                            <a href="${book.blobUrl}" download="${book.name}" class="primary-btn" style="background: #5d6e63; color:white; padding:0.6rem 2rem; text-decoration:none;">⬇ download EPUB</a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ----- rotate carousel -----
+            function rotateCarousel(direction) {
+                if (books.length === 0) return;
+                
+                let newIndex = selectedIndex;
+                if (direction === 'left') {
+                    newIndex = (selectedIndex - 1 + books.length) % books.length;
+                } else {
+                    newIndex = (selectedIndex + 1) % books.length;
+                }
+                
+                selectBook(newIndex);
+            }
+
+            // ----- smooth scroll thumbnails -----
+            function scrollThumbnails() {
+                if (selectedIndex < 0 || !thumbScroller) return;
+                
+                const thumbs = thumbScroller.querySelectorAll('.book-thumb');
+                if (thumbs.length === 0) return;
+                
+                const selectedThumb = thumbs[selectedIndex];
+                const scrollerRect = thumbScroller.parentElement.getBoundingClientRect();
+                const thumbRect = selectedThumb.getBoundingClientRect();
+                
+                // Calculate offset to center the selected thumbnail
+                const thumbCenterOffset = thumbRect.left - scrollerRect.left + thumbRect.width / 2;
+                const scrollerCenterOffset = scrollerRect.width / 2;
+                
+                const scrollAmount = thumbScroller.offsetLeft + thumbCenterOffset - scrollerCenterOffset;
+                thumbScroller.parentElement.scrollLeft = scrollAmount;
+            }
+
+            // ----- add books from file list -----
+function addBooksFromFileList(fileList) {
+    if (!fileList || fileList.length === 0) return;
+
+    for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const name = file.name;
+        const ext = name.split('.').pop().toLowerCase();
+        
+        if (ext !== 'pdf' && ext !== 'epub') continue;
+
+        // Create a temporary object for the upload
+        const tempBook = {
+            file: file,
+            name: name,
+            type: file.type
+        };
+
+        if (ext === 'pdf') {
+            extractPdfFirstPage(tempBook).then(imageData => {
+                tempBook.thumbnailImage = imageData;
+                uploadBookToBackend(tempBook);
+            });
+        } else {
+            uploadBookToBackend(tempBook);
+        }
+    }
+    // We DON'T push to the local 'books' array here anymore. 
+    // loadBooksFromBackend() will do that once the server confirms it's saved.
+}
+
+            // ----- upload book to backend -----
+// Inside your index.html
+// Update this function in your index.html
+async function uploadBookToBackend(bookObj) {
+    // 1. Extract the actual file from the object
+    const file = bookObj.file; 
+    const fileName = bookObj.name;
+    const thumbnailData = bookObj.thumbnailImage;
+
+    if (!file) {
+        console.error("❌ No file found in book object");
+        return;
+    }
+
+    // 2. Convert to Base64
+    const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file); // This was failing because 'file' was the whole object before
+    });
+
+    // 3. Send to Node.js
+    try {
+        const response = await fetch('/api/books', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileName: fileName,
+                fileData: base64Data,
+                thumbnailImage: thumbnailData
+            }),
+        });
+
+        if (response.ok) {
+            console.log(`✅ ${fileName} saved to SQL Server!`);
+            // This reloads the list from the database so it stays after refresh
+            loadBooksFromBackend(); 
+        } else {
+            const errorData = await response.json();
+            console.error("❌ Server rejected upload:", errorData.error);
+        }
+    } catch (error) {
+        console.error("❌ Network error:", error);
+    }
+}
+            // Helper function for ArrayBuffer to base64 conversion
+            function arrayBufferToBase64(buffer) {
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return window.btoa(binary);
+            }
+
+            // ----- load books from backend on page load -----
+          async function loadBooksFromBackend() {
+    try {
+        const response = await fetch('http://localhost:3000/api/books');
+        if (!response.ok) throw new Error('Failed to fetch');
+        
+        const backendBooks = await response.json();
+        
+        // CLEAR the local list to prevent duplicates
+        books = backendBooks.map(b => ({
+            id: b.id,
+            name: b.fileName,
+            blobUrl: null,
+            type: b.fileName.endsWith('.pdf') ? 'application/pdf' : 'application/epub+zip',
+            thumbnailImage: b.thumbnailImage,
+            file: null,
+            serverId: b.id
+        }));
+        
+        renderThumbnails();
+    } catch (err) {
+        console.log('ℹ️ Server unreachable or empty.');
+    }
+}
+
+            // ----- clear shelf (revoke all blob urls) -----
+            function clearShelf() {
+                if (!confirm('Are you sure you want to delete all books?')) return;
+                
+                // revoke all blob urls to free memory
+                for (let book of books) {
+                    if (book.blobUrl) {
+                        URL.revokeObjectURL(book.blobUrl);
+                        book.blobUrl = null;
+                    }
+                }
+                
+                // Clear from backend
+                fetch('http://localhost:3000/api/books', {
+                    method: 'DELETE'
+                }).then(() => {
+                    console.log('✅ All books deleted from server');
+                }).catch(err => console.error('Error deleting from backend:', err));
+                
+                books = [];
+                selectedIndex = -1;
+                readerPanel.classList.add('hidden');
+                viewerArea.innerHTML = '';
+                renderThumbnails();
+            }
+
+            // ----- close reader (deselect) -----
+            function closeReader() {
+                if (selectedIndex !== -1) {
+                    // keep selection, just hide reader
+                }
+                readerPanel.classList.add('hidden');
+                viewerArea.innerHTML = '';
+            }
+
+            // ----- Event listeners -----
+            uploadBtn.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length) {
+                    addBooksFromFileList(files);
+                }
+                fileInput.value = ''; // allow re-upload same files
+            });
+
+            clearBtn.addEventListener('click', clearShelf);
+
+            navLeft.addEventListener('click', () => rotateCarousel('left'));
+            navRight.addEventListener('click', () => rotateCarousel('right'));
+
+            closeReaderBtn.addEventListener('click', closeReader);
+
+            // initial render
+            renderThumbnails();
+            
+            // Load books from backend on page load
+            loadBooksFromBackend();
+        })();
+    </script>
+    </script>
+
+    <!-- small backend hint (footer) -->
+    <div style="margin-top: 1rem; font-size:0.85rem; color:#887e72;">← browse · click a book · upload any pdf/epub →</div>
+</body>
+</html>
