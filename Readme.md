@@ -1,3 +1,4 @@
+![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 whisper · spinning bookshelf 📚✨
 A minimalist, high-aesthetic web application for managing and reading personal digital libraries. Featuring a dynamic carousel interface and seamless integration with SQL Server for persistent storage.
 
